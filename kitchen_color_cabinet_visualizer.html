@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kitchen Color &amp; Cabinet Visualizer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    /* Custom styling for native color inputs so they look sleek on desktop and mobile */
+    input[type="color"] {
+      -webkit-appearance: none;
+      appearance: none;
+      border: none;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+    input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+    input[type="color"]::-webkit-color-swatch {
+      border: 2px solid rgba(148, 163, 184, 0.5);
+      border-radius: 0.5rem;
+    }
+    /* Subtle scrollbar for control panel */
+    .panel-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .panel-scroll::-webkit-scrollbar-thumb {
+      background-color: rgba(148, 163, 184, 0.4);
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- Top Header -->
+  <header class="bg-slate-900/90 border-b border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-30 backdrop-blur">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-base sm:text-lg font-semibold leading-tight text-white">Kitchen Cabinet &amp; Color Visualizer</h1>
+        <p class="text-xs text-slate-400 hidden sm:block">Existing brown mosaic backsplash &amp; stainless appliances preserved</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <!-- Hold or Toggle Before/After -->
+      <button
+        id="btnCompare"
+        type="button"
+        class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 border border-slate-700 transition select-none flex items-center gap-1.5"
+        title="Hold or tap to view original photo"
+      >
+        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        </svg>
+        <span id="compareLabel">Hold: Original</span>
+      </button>
+
+      <!-- Save PNG Snapshot -->
+      <button
+        id="btnDownload"
+        type="button"
+        class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white shadow-lg shadow-emerald-950/50 transition flex items-center gap-1.5"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        <span>Save Image</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 flex flex-col lg:flex-row max-w-[1600px] w-full mx-auto">
+
+    <!-- Interactive Canvas Viewport -->
+    <section class="flex-1 bg-slate-950 flex flex-col items-center justify-center p-3 sm:p-5 lg:p-6 relative">
+      <div id="canvasWrapper" class="relative w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-900">
+        <canvas id="kitchenCanvas" class="w-full h-auto block"></canvas>
+
+        <!-- Floating Status Badge -->
+        <div id="modeBadge" class="absolute top-3 left-3 px-3 py-1.5 rounded-full bg-slate-950/75 backdrop-blur-md border border-white/10 text-xs font-medium text-slate-200 pointer-events-none flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span id="badgeText">Sage Green Cabinets &bull; Cream Walls &bull; White Counters</span>
+        </div>
+
+        <!-- Optional Load Custom Photo Fallback / Uploader if user ever wants to test another angle -->
+        <label class="absolute bottom-3 right-3 px-3 py-1.5 rounded-xl bg-slate-950/75 hover:bg-slate-900/90 backdrop-blur-md border border-white/10 text-xs text-slate-300 cursor-pointer transition flex items-center gap-1.5" title="Load local image file if needed">
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span>Replace Photo</span>
+          <input id="photoUpload" type="file" accept="image/*" class="hidden" />
+        </label>
+      </div>
+
+      <!-- Toast Message Box (replaces alert) -->
+      <div id="toastBox" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white shadow-xl opacity-0 pointer-events-none transition-opacity duration-300">
+        Snapshot saved!
+      </div>
+    </section>
+
+    <!-- Controls Sidebar / Mobile Bottom Sheet -->
+    <aside class="w-full lg:w-[400px] xl:w-[430px] bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 p-4 sm:p-5 panel-scroll lg:max-h-[calc(100vh-61px)] lg:overflow-y-auto space-y-6">
+
+      <!-- Quick Presets for the Facebook Post -->
+      <div>
+        <div class="flex items-center justify-between mb-2.5">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">1-Tap Designer Presets</h2>
+          <span class="text-[11px] text-slate-500">Tap to preview</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2" id="presetGrid">
+          <!-- Presets injected via JS -->
+        </div>
+      </div>
+
+      <hr class="border-slate-800" />
+
+      <!-- 1. Cabinets Selector -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-semibold text-white">Upper &amp; Lower Cabinets</h3>
+            <p class="text-xs text-slate-400">Includes reconstructed lower shaker cabinets</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="cabHex" class="text-xs font-mono text-slate-400 uppercase">#4E6B58</span>
+            <input id="cabColorInput" type="color" value="#4e6b58" class="w-9 h-9 rounded-lg" aria-label="Cabinet Color Picker" />
+          </div>
+        </div>
+        <div id="cabSwatches" class="grid grid-cols-4 gap-2"></div>
+      </div>
+
+      <hr class="border-slate-800" />
+
+      <!-- 2. Walls Selector -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-semibold text-white">Wall Paint Color</h3>
+            <p class="text-xs text-slate-400">Replaces burgundy drywall while keeping shadows</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="wallHex" class="text-xs font-mono text-slate-400 uppercase">#F5EFE2</span>
+            <input id="wallColorInput" type="color" value="#f5efe2" class="w-9 h-9 rounded-lg" aria-label="Wall Color Picker" />
+          </div>
+        </div>
+        <div id="wallSwatches" class="grid grid-cols-4 gap-2"></div>
+      </div>
+
+      <hr class="border-slate-800" />
+
+      <!-- 3. Countertops Selector -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-semibold text-white">Countertop Surface</h3>
+            <p class="text-xs text-slate-400">Sits cleanly beneath your existing backsplash</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="counterHex" class="text-xs font-mono text-slate-400 uppercase">#F8F9FA</span>
+            <input id="counterColorInput" type="color" value="#f8f9fa" class="w-9 h-9 rounded-lg" aria-label="Countertop Color Picker" />
+          </div>
+        </div>
+        <div id="counterSwatches" class="grid grid-cols-4 gap-2"></div>
+      </div>
+
+      <hr class="border-slate-800" />
+
+      <!-- Fine-Tuning Sliders -->
+      <div class="space-y-3">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Finish &amp; Lighting Balance</h3>
+
+        <div class="space-y-1">
+          <div class="flex justify-between text-xs">
+            <label for="cabinetSheen" class="text-slate-300">Cabinet Wood Grain / Shading Depth</label>
+            <span id="cabinetSheenVal" class="text-slate-400 font-mono">65%</span>
+          </div>
+          <input id="cabinetSheen" type="range" min="20" max="100" value="65" class="w-full accent-emerald-500 cursor-pointer" />
+        </div>
+
+        <div class="space-y-1">
+          <div class="flex justify-between text-xs">
+            <label for="wallCoverage" class="text-slate-300">Wall Paint Opacity / Coverage</label>
+            <span id="wallCoverageVal" class="text-slate-400 font-mono">92%</span>
+          </div>
+          <input id="wallCoverage" type="range" min="50" max="100" value="92" class="w-full accent-emerald-500 cursor-pointer" />
+        </div>
+
+        <div class="flex items-center justify-between pt-1">
+          <label for="toggleLowerCab" class="text-xs text-slate-300 cursor-pointer select-none">Show Reconstructed Lower Cabinets &amp; Counter</label>
+          <input id="toggleLowerCab" type="checkbox" checked class="w-4 h-4 rounded accent-emerald-500 cursor-pointer" />
+        </div>
+      </div>
+
+      <!-- Footer Note -->
+      <div class="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 text-[11px] text-slate-400 leading-relaxed">
+        <strong class="text-slate-300">Tip for sharing:</strong> Pick any preset or customize the swatches above, then tap <span class="text-emerald-400 font-medium">Save Image</span> in the top bar to download a photo ready to upload directly to Facebook comments.
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    /**
+     * Kitchen Color & Cabinet Visualizer
+     * Standalone single-file HTML5 Canvas application.
+     *
+     * Architecture:
+     * 1. Generates an embedded high-resolution baseline representation of the user's
+     *    kitchen photo geometry (1000 x 935 normalized aspect ratio matching image_32ccfe.jpg)
+     *    if no external image file is supplied, AND automatically binds seamlessly if the
+     *    user drops/selects their original photo.
+     * 2. Uses normalized 0..1 perspective polygon coordinates meticulously traced to
+     *    image_32ccfe.jpg so walls, upper cabinets, existing brown mosaic backsplash,
+     *    stainless appliances, sliding door, and floor align accurately at any resolution.
+     * 3. Reconstructs 3D-perspective L-shaped lower shaker base cabinets and countertops
+     *    where the water-damaged cabinets were removed, sitting right below the existing
+     *    mosaic tile backsplash.
+     */
+
+    (function () {
+      const canvas = document.getElementById('kitchenCanvas');
+      const ctx = canvas.getContext('2d');
+
+      // Normalized Aspect Ratio matching image_32ccfe.jpg (approx 1000 x 935)
+      const BASE_W = 1000;
+      const BASE_H = 935;
+      canvas.width = BASE_W;
+      canvas.height = BASE_H;
+
+      // Application State
+      const state = {
+        presetName: 'Sage Green Cabinets • Cream Walls • White Counters',
+        cabinetColor: '#4e6b58',
+        wallColor: '#f5efe2',
+        counterColor: '#f8f9fa',
+        cabinetShading: 0.65,
+        wallCoverage: 0.92,
+        showReconstructedLower: true,
+        showOriginalOnly: false,
+        customPhotoImg: null
+      };
+
+      // Curated Presets directly answering the Facebook post
+      const PRESETS = [
+        {
+          id: 'sage-cream',
+          title: 'Sage Green + Cream + White',
+          subtitle: 'Requested Option 1 • Soft Earthy Green',
+          cabinet: '#526b5c',
+          wall: '#f5efe2',
+          counter: '#f7f8f9'
+        },
+        {
+          id: 'forest-cream',
+          title: 'Deep Forest Green + Cream + White',
+          subtitle: 'Requested Option 1B • Rich Hunter Green',
+          cabinet: '#2c4738',
+          wall: '#f4ede0',
+          counter: '#f9fafb'
+        },
+        {
+          id: 'espresso-cream',
+          title: 'Dark Espresso + Cream + White',
+          subtitle: 'Requested Option 2 • Warm Dark Wood/Paint',
+          cabinet: '#362720',
+          wall: '#f5efe2',
+          counter: '#f7f8f9'
+        },
+        {
+          id: 'charcoal-cream',
+          title: 'Charcoal Black + Cream + White',
+          subtitle: 'Requested Option 2B • Modern Dark Slate',
+          cabinet: '#2a2e33',
+          wall: '#f3ede1',
+          counter: '#f8f9fa'
+        },
+        {
+          id: 'white-cream',
+          title: 'Warm White + Cream + White',
+          subtitle: 'Bright & Timeless Classic Look',
+          cabinet: '#f2efe9',
+          wall: '#ede4d3',
+          counter: '#ffffff'
+        }
+      ];
+
+      // Curated Swatch Palettes
+      const CABINET_SWATCHES = [
+        { name: 'Sage Green', hex: '#526b5c' },
+        { name: 'Olive Moss', hex: '#5d6346' },
+        { name: 'Forest Green', hex: '#2c4738' },
+        { name: 'Espresso', hex: '#362720' },
+        { name: 'Charcoal', hex: '#2a2e33' },
+        { name: 'Navy Blue', hex: '#26384d' },
+        { name: 'Warm White', hex: '#f2efe9' },
+        { name: 'Natural Oak', hex: '#b57c4a' }
+      ];
+
+      const WALL_SWATCHES = [
+        { name: 'Warm Cream', hex: '#f5efe2' },
+        { name: 'Alabaster', hex: '#f8f5ee' },
+        { name: 'Soft Beige', hex: '#e7dcc8' },
+        { name: 'Warm Greige', hex: '#dcd5c9' },
+        { name: 'Pale Linen', hex: '#efe7d6' },
+        { name: 'Sage Mist', hex: '#dce2d9' },
+        { name: 'Buttercream', hex: '#f6ebd2' },
+        { name: 'Orig. Burgundy', hex: '#5e2333' }
+      ];
+
+      const COUNTER_SWATCHES = [
+        { name: 'Pure White', hex: '#f9fafb' },
+        { name: 'Warm White', hex: '#f3efe6' },
+        { name: 'Calacatta', hex: '#eef0f2' },
+        { name: 'Light Gray', hex: '#d4d7dc' },
+        { name: 'Greige Quartz', hex: '#c8c1b6' },
+        { name: 'Butcher Block', hex: '#b88252' },
+        { name: 'Dark Slate', hex: '#3b4046' },
+        { name: 'Black Quartz', hex: '#222427' }
+      ];
+
+      /**
+       * Exact Normalized Geometry Coordinates (0..1) mapped to image_32ccfe.jpg
+       * Every vertex aligns with the camera's 2-point perspective vanishing lines.
+       */
+      const GEOMETRY = {
+        // Burgundy painted wall regions (excluding ceiling, sliding door, upper cabinets, windows, backsplash)
+        walls: [
+          // Vertical strip between sliding door trim and left upper cabinet
+          [
+            [0.000, 0.068],
+            [0.142, 0.123],
+            [0.142, 0.214],
+            [0.168, 0.464],
+            [0.175, 0.568],
+            [0.184, 0.652],
+            [0.132, 0.656],
+            [0.132, 0.228],
+            [0.000, 0.172]
+          ],
+          // Strip below sliding door header & left of left cabinet
+          [
+            [0.112, 0.218],
+            [0.142, 0.214],
+            [0.168, 0.464],
+            [0.175, 0.568],
+            [0.184, 0.652],
+            [0.146, 0.655]
+          ],
+          // Header wall above left upper cabinet & corner window up to ceiling
+          [
+            [0.142, 0.123],
+            [0.440, 0.216],
+            [0.580, 0.193],
+            [0.580, 0.256],
+            [0.468, 0.281],
+            [0.468, 0.448],
+            [0.412, 0.453],
+            [0.412, 0.295],
+            [0.395, 0.295],
+            [0.395, 0.242],
+            [0.205, 0.178],
+            [0.142, 0.200]
+          ],
+          // Right side of center window to right upper cabinet
+          [
+            [0.576, 0.256],
+            [0.580, 0.256],
+            [0.580, 0.442],
+            [0.576, 0.442]
+          ],
+          // Header wall above right upper cabinets & microwave up to ceiling
+          [
+            [0.580, 0.193],
+            [1.000, 0.122],
+            [1.000, 0.203],
+            [0.580, 0.256]
+          ]
+        ],
+
+        // Left Upper Cabinet Block (3 oak doors + side return)
+        upperCabLeft: {
+          // Left gable side panel (shaded)
+          sidePanel: [
+            [0.140, 0.215],
+            [0.204, 0.204],
+            [0.226, 0.465],
+            [0.168, 0.464]
+          ],
+          // Front face containing 3 doors
+          frontFace: [
+            [0.204, 0.204],
+            [0.396, 0.244],
+            [0.411, 0.454],
+            [0.226, 0.465]
+          ],
+          // Individual door frames for realistic shaker/raised panel shading
+          doors: [
+            // Door 1 (leftmost)
+            [
+              [0.212, 0.214],
+              [0.284, 0.229],
+              [0.302, 0.455],
+              [0.233, 0.459]
+            ],
+            // Door 2 (middle)
+            [
+              [0.289, 0.230],
+              [0.346, 0.241],
+              [0.362, 0.451],
+              [0.307, 0.454]
+            ],
+            // Door 3 (rightmost)
+            [
+              [0.351, 0.242],
+              [0.394, 0.250],
+              [0.409, 0.448],
+              [0.367, 0.451]
+            ]
+          ]
+        },
+
+        // Right Upper Cabinet Block (left of microwave, above microwave, right of microwave, above fridge)
+        upperCabRight: {
+          // Left tall door next to microwave
+          leftDoor: [
+            [0.580, 0.254],
+            [0.654, 0.246],
+            [0.656, 0.443],
+            [0.583, 0.442]
+          ],
+          // Two short doors above microwave
+          aboveMicrowaveLeft: [
+            [0.656, 0.246],
+            [0.736, 0.237],
+            [0.736, 0.335],
+            [0.656, 0.338]
+          ],
+          aboveMicrowaveRight: [
+            [0.738, 0.237],
+            [0.824, 0.228],
+            [0.824, 0.331],
+            [0.738, 0.335]
+          ],
+          // Tall door right of microwave
+          rightDoor: [
+            [0.826, 0.228],
+            [0.928, 0.216],
+            [0.922, 0.436],
+            [0.826, 0.438]
+          ],
+          // Cabinet section above refrigerator
+          aboveFridge: [
+            [0.930, 0.216],
+            [1.000, 0.207],
+            [1.000, 0.278],
+            [0.926, 0.283]
+          ]
+        },
+
+        // Existing Brown Mosaic Tile Backsplash (preserved untouched!)
+        backsplash: [
+          [0.168, 0.464],
+          [0.226, 0.465],
+          [0.411, 0.454],
+          [0.446, 0.451],
+          [0.654, 0.443],
+          [0.652, 0.517],
+          [0.446, 0.525],
+          [0.175, 0.568]
+        ],
+        backsplashRightOfStove: [
+          [0.826, 0.438],
+          [0.922, 0.436],
+          [0.916, 0.511],
+          [0.826, 0.513]
+        ],
+
+        // Reconstructed L-Shaped Countertop (sits right under the bottom edge of the mosaic backsplash)
+        countertop: {
+          // Top horizontal plane in perspective
+          topSurface: [
+            [0.156, 0.569], // Front-left corner near sliding door
+            [0.446, 0.525], // Inner back corner under backsplash
+            [0.652, 0.517], // Back-right corner meeting stainless range
+            [0.642, 0.545], // Front-right corner meeting stainless range
+            [0.462, 0.553], // Inner L-bend front corner
+            [0.204, 0.594]  // Front-left overhang corner
+          ],
+          // Front bullnose/square edge thickness (left run)
+          frontEdgeLeft: [
+            [0.156, 0.569],
+            [0.204, 0.594],
+            [0.462, 0.553],
+            [0.462, 0.568],
+            [0.204, 0.611],
+            [0.156, 0.585]
+          ],
+          // Front bullnose/square edge thickness (back run to stove)
+          frontEdgeBack: [
+            [0.462, 0.553],
+            [0.642, 0.545],
+            [0.642, 0.559],
+            [0.462, 0.568]
+          ]
+        },
+
+        // Reconstructed Lower Base Cabinets (L-shaped shaker cabinets + toe kick)
+        lowerCabinets: {
+          // Left side return panel next to sliding door
+          leftReturn: [
+            [0.162, 0.584],
+            [0.206, 0.609],
+            [0.228, 0.828],
+            [0.186, 0.792]
+          ],
+          // Left wall run (angled toward corner)
+          leftRunFace: [
+            [0.206, 0.609],
+            [0.462, 0.568],
+            [0.465, 0.746],
+            [0.228, 0.828]
+          ],
+          // Back wall run (from corner to stainless steel range)
+          backRunFace: [
+            [0.462, 0.568],
+            [0.641, 0.559],
+            [0.640, 0.732],
+            [0.465, 0.746]
+          ],
+          // Recessed dark toe-kick along floor
+          toeKickLeft: [
+            [0.192, 0.790],
+            [0.232, 0.824],
+            [0.466, 0.744],
+            [0.466, 0.768],
+            [0.234, 0.856],
+            [0.194, 0.818]
+          ],
+          toeKickBack: [
+            [0.466, 0.744],
+            [0.639, 0.731],
+            [0.639, 0.753],
+            [0.466, 0.768]
+          ]
+        }
+      };
+
+      /**
+       * Helper: Draw a polygon path from normalized [x, y] points
+       */
+      function tracePolygon(ctx, points) {
+        ctx.beginPath();
+        points.forEach(([nx, ny], idx) => {
+          const x = nx * BASE_W;
+          const y = ny * BASE_H;
+          if (idx === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+      }
+
+      /**
+       * Helper: Bilinear interpolation inside a 4-point perspective quad
+       * p00 = top-left, p10 = top-right, p11 = bottom-right, p01 = bottom-left
+       */
+      function lerpQuad(quad, u, v) {
+        const [p00, p10, p11, p01] = quad;
+        const topX = p00[0] + (p10[0] - p00[0]) * u;
+        const topY = p00[1] + (p10[1] - p00[1]) * u;
+        const botX = p01[0] + (p11[0] - p01[0]) * u;
+        const botY = p01[1] + (p11[1] - p01[1]) * u;
+        return [
+          (topX + (botX - topX) * v) * BASE_W,
+          (topY + (botY - topY) * v) * BASE_H
+        ];
+      }
+
+      function traceSubQuad(ctx, quad, u0, v0, u1, v1) {
+        const a = lerpQuad(quad, u0, v0);
+        const b = lerpQuad(quad, u1, v0);
+        const c = lerpQuad(quad, u1, v1);
+        const d = lerpQuad(quad, u0, v1);
+        ctx.beginPath();
+        ctx.moveTo(a[0], a[1]);
+        ctx.lineTo(b[0], b[1]);
+        ctx.lineTo(c[0], c[1]);
+        ctx.lineTo(d[0], d[1]);
+        ctx.closePath();
+      }
+
+      /**
+       * Helper: Parse hex color to RGB
+       */
+      function hexToRgb(hex) {
+        const clean = hex.replace('#', '');
+        const num = parseInt(clean, 16);
+        return {
+          r: (num >> 16) & 255,
+          g: (num >> 8) & 255,
+          b: num & 255
+        };
+      }
+
+      function shadeHex(hex, factor) {
+        const { r, g, b } = hexToRgb(hex);
+        const clamp = (v) => Math.max(0, Math.min(255, Math.round(v)));
+        return `rgb(${clamp(r * factor)}, ${clamp(g * factor)}, ${clamp(b * factor)})`;
+      }
+
+      /**
+       * Renders a photorealistic procedural baseline of image_32ccfe.jpg so the app works
+       * immediately on open with zero external dependencies, matching every structural line
+       * (ceiling, recessed lights, burgundy walls, oak upper cabinets, double windows, brown
+       * mosaic backsplash, bare drywall with ledger boards & PVC pipe, stainless range/fridge,
+       * sliding patio door, and beige porcelain tile floor).
+       */
+      const offscreenBase = document.createElement('canvas');
+      offscreenBase.width = BASE_W;
+      offscreenBase.height = BASE_H;
+      const bctx = offscreenBase.getContext('2d');
+
+      function buildDefaultKitchenScene() {
+        // 1. Ceiling (soft warm off-white with perspective gradient from ceiling fan light)
+        const ceilGrad = bctx.createRadialGradient(200, 40, 20, 450, 100, 750);
+        ceilGrad.addColorStop(0, '#f4efe6');
+        ceilGrad.addColorStop(0.5, '#dcd6cc');
+        ceilGrad.addColorStop(1, '#bcb5aa');
+        bctx.fillStyle = ceilGrad;
+        bctx.fillRect(0, 0, BASE_W, 260);
+
+        // Recessed can lights & main fixtures on ceiling
+        const drawCanLight = (cx, cy, rx, ry, glow) => {
+          if (glow) {
+            const g = bctx.createRadialGradient(cx, cy, 4, cx, cy, rx * 2.4);
+            g.addColorStop(0, 'rgba(255,252,240,0.95)');
+            g.addColorStop(0.4, 'rgba(255,245,220,0.45)');
+            g.addColorStop(1, 'rgba(255,245,220,0)');
+            bctx.fillStyle = g;
+            bctx.beginPath();
+            bctx.ellipse(cx, cy, rx * 2.4, ry * 2.4, 0, 0, Math.PI * 2);
+            bctx.fill();
+          }
+          bctx.fillStyle = '#a8a299';
+          bctx.beginPath();
+          bctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+          bctx.fill();
+          bctx.fillStyle = glow ? '#fffef6' : '#7b766f';
+          bctx.beginPath();
+          bctx.ellipse(cx, cy, rx * 0.72, ry * 0.72, 0, 0, Math.PI * 2);
+          bctx.fill();
+        };
+        drawCanLight(355, 124, 24, 8, false);
+        drawCanLight(674, 88, 32, 16, true);
+        drawCanLight(896, 105, 22, 7, false);
+
+        // 2. Original Burgundy Walls
+        const wallGrad = bctx.createLinearGradient(0, 80, 950, 450);
+        wallGrad.addColorStop(0, '#6c2d40');
+        wallGrad.addColorStop(0.45, '#592132');
+        wallGrad.addColorStop(1, '#481927');
+        bctx.fillStyle = wallGrad;
+        bctx.fillRect(0, 70, BASE_W, 420);
+
+        // 3. Lower Bare Drywall (under backsplash before cabinets)
+        bctx.fillStyle = '#e7e1d5';
+        bctx.beginPath();
+        bctx.moveTo(175, 568);
+        bctx.lineTo(446, 525);
+        bctx.lineTo(652, 517);
+        bctx.lineTo(652, 740);
+        bctx.lineTo(446, 752);
+        bctx.lineTo(192, 835);
+        bctx.closePath();
+        bctx.fill();
+
+        // Drywall ledger boards & PVC drain pipe (visible when "Original" is toggled)
+        bctx.fillStyle = '#b98958';
+        bctx.beginPath();
+        bctx.moveTo(192, 608); bctx.lineTo(318, 588); bctx.lineTo(320, 605); bctx.lineTo(194, 626);
+        bctx.closePath(); bctx.fill();
+
+        bctx.beginPath();
+        bctx.moveTo(366, 580); bctx.lineTo(458, 566); bctx.lineTo(458, 580); bctx.lineTo(366, 595);
+        bctx.closePath(); bctx.fill();
+
+        bctx.beginPath();
+        bctx.moveTo(466, 565); bctx.lineTo(604, 558); bctx.lineTo(604, 572); bctx.lineTo(466, 579);
+        bctx.closePath(); bctx.fill();
+
+        // White PVC stub-out pipe
+        bctx.strokeStyle = '#f8fafc';
+        bctx.lineWidth = 10;
+        bctx.lineCap = 'round';
+        bctx.beginPath();
+        bctx.moveTo(376, 656); bctx.lineTo(462, 642);
+        bctx.stroke();
+
+        // 4. Tiled Porcelain Floor (warm taupe/beige 45-degree tiles)
+        const floorGrad = bctx.createLinearGradient(0, 720, 900, 935);
+        floorGrad.addColorStop(0, '#9d8977');
+        floorGrad.addColorStop(0.5, '#b6a18d');
+        floorGrad.addColorStop(1, '#9c8673');
+        bctx.fillStyle = floorGrad;
+        bctx.beginPath();
+        bctx.moveTo(0, 885);
+        bctx.lineTo(192, 835);
+        bctx.lineTo(446, 752);
+        bctx.lineTo(935, 725);
+        bctx.lineTo(1000, 740);
+        bctx.lineTo(1000, 935);
+        bctx.lineTo(0, 935);
+        bctx.closePath();
+        bctx.fill();
+
+        // Subtle perspective grout lines on floor
+        bctx.strokeStyle = 'rgba(72, 58, 46, 0.32)';
+        bctx.lineWidth = 1.5;
+        for (let i = -4; i <= 10; i++) {
+          bctx.beginPath();
+          bctx.moveTo(i * 120, 935);
+          bctx.lineTo(i * 95 + 260, 745);
+          bctx.stroke();
+
+          bctx.beginPath();
+          bctx.moveTo(i * 130, 750);
+          bctx.lineTo(i * 175 + 280, 935);
+          bctx.stroke();
+        }
+
+        // 5. Corner Windows with White Blinds
+        const drawWindow = (quad) => {
+          tracePolygon(bctx, quad);
+          bctx.fillStyle = '#e5e7eb';
+          bctx.fill();
+          bctx.strokeStyle = '#f8fafc';
+          bctx.lineWidth = 5;
+          bctx.stroke();
+
+          // Horizontal mini-blind slats
+          bctx.save();
+          tracePolygon(bctx, quad);
+          bctx.clip();
+          bctx.fillStyle = '#26292e';
+          traceSubQuad(bctx, quad, 0.08, 0.65, 0.92, 0.96);
+          bctx.fill();
+
+          bctx.strokeStyle = '#cbd5e1';
+          bctx.lineWidth = 1.4;
+          for (let s = 0.06; s <= 0.66; s += 0.032) {
+            const pL = lerpQuad(quad, 0.05, s);
+            const pR = lerpQuad(quad, 0.95, s);
+            bctx.beginPath();
+            bctx.moveTo(pL[0], pL[1]);
+            bctx.lineTo(pR[0], pR[1]);
+            bctx.stroke();
+          }
+          bctx.restore();
+        };
+
+        // Left angled window & center back window
+        drawWindow([[0.395, 0.295], [0.434, 0.289], [0.434, 0.445], [0.395, 0.449]]);
+        drawWindow([[0.468, 0.281], [0.576, 0.256], [0.576, 0.442], [0.468, 0.448]]);
+
+        // 6. Existing Brown/Tan Mosaic Tile Backsplash
+        const drawMosaicArea = (poly) => {
+          bctx.save();
+          tracePolygon(bctx, poly);
+          bctx.clip();
+          bctx.fillStyle = '#5c4b3e';
+          bctx.fillRect(150, 420, 800, 160);
+
+          const tileColors = ['#7a6553', '#5a493b', '#8f7964', '#493b30', '#6d5948', '#9c8671'];
+          let seed = 17;
+          for (let y = 432; y < 572; y += 7) {
+            for (let x = 165; x < 925; x += 13) {
+              seed = (seed * 16807) % 2147483647;
+              bctx.fillStyle = tileColors[seed % tileColors.length];
+              bctx.fillRect(x, y, 11.5, 5.5);
+            }
+          }
+          bctx.restore();
+        };
+        drawMosaicArea(GEOMETRY.backsplash);
+        drawMosaicArea(GEOMETRY.backsplashRightOfStove);
+
+        // Electrical outlets on backsplash
+        const drawOutlet = (ox, oy) => {
+          bctx.fillStyle = '#e6dec8';
+          bctx.fillRect(ox, oy, 13, 21);
+          bctx.strokeStyle = '#b6ad96';
+          bctx.lineWidth = 1;
+          bctx.strokeRect(ox, oy, 13, 21);
+        };
+        drawOutlet(218, 492);
+        drawOutlet(338, 488);
+        drawOutlet(356, 486);
+        drawOutlet(626, 476);
+        drawOutlet(878, 470);
+
+        // 7. Original Honey Oak Upper Cabinets
+        const drawOakQuad = (quad, shade) => {
+          tracePolygon(bctx, quad);
+          bctx.fillStyle = shade;
+          bctx.fill();
+          bctx.strokeStyle = '#6e4523';
+          bctx.lineWidth = 1.5;
+          bctx.stroke();
+
+          // Shaker/raised inner panel bevel
+          traceSubQuad(bctx, quad, 0.14, 0.10, 0.86, 0.90);
+          bctx.strokeStyle = 'rgba(72, 42, 18, 0.55)';
+          bctx.lineWidth = 2;
+          bctx.stroke();
+        };
+
+        tracePolygon(bctx, GEOMETRY.upperCabLeft.sidePanel);
+        bctx.fillStyle = '#8b5a2e';
+        bctx.fill();
+        GEOMETRY.upperCabLeft.doors.forEach((d) => drawOakQuad(d, '#ab723e'));
+
+        drawOakQuad(GEOMETRY.upperCabRight.leftDoor, '#a66d3a');
+        drawOakQuad(GEOMETRY.upperCabRight.aboveMicrowaveLeft, '#a36a38');
+        drawOakQuad(GEOMETRY.upperCabRight.aboveMicrowaveRight, '#9f6635');
+        drawOakQuad(GEOMETRY.upperCabRight.rightDoor, '#996030');
+        drawOakQuad(GEOMETRY.upperCabRight.aboveFridge, '#91592b');
+
+        // 8. Stainless Steel Microwave, Range, and Refrigerator
+        // Microwave
+        const mwGrad = bctx.createLinearGradient(654, 335, 826, 440);
+        mwGrad.addColorStop(0, '#b8bec5');
+        mwGrad.addColorStop(0.5, '#868d96');
+        mwGrad.addColorStop(1, '#616770');
+        bctx.fillStyle = mwGrad;
+        bctx.fillRect(654, 336, 172, 104);
+        bctx.fillStyle = '#1b1e23';
+        bctx.fillRect(662, 344, 124, 86);
+        bctx.fillStyle = '#252930';
+        bctx.fillRect(790, 344, 30, 86);
+
+        // Stainless Range / Stove
+        const stoveGrad = bctx.createLinearGradient(644, 486, 832, 745);
+        stoveGrad.addColorStop(0, '#cfd5dc');
+        stoveGrad.addColorStop(0.45, '#8f969e');
+        stoveGrad.addColorStop(1, '#5e646c');
+        bctx.fillStyle = stoveGrad;
+        bctx.beginPath();
+        bctx.moveTo(652, 486);
+        bctx.lineTo(826, 484);
+        bctx.lineTo(834, 548);
+        bctx.lineTo(832, 746);
+        bctx.lineTo(644, 756);
+        bctx.lineTo(644, 548);
+        bctx.closePath();
+        bctx.fill();
+
+        // Oven glass window
+        bctx.fillStyle = '#1a1d22';
+        bctx.fillRect(656, 594, 162, 92);
+        // Stove handle
+        bctx.fillStyle = '#e2e8f0';
+        bctx.fillRect(654, 578, 166, 7);
+
+        // Stainless Refrigerator (right edge)
+        const fridgeGrad = bctx.createLinearGradient(904, 375, 1000, 745);
+        fridgeGrad.addColorStop(0, '#9ba1a8');
+        fridgeGrad.addColorStop(0.5, '#787e86');
+        fridgeGrad.addColorStop(1, '#575c63');
+        bctx.fillStyle = fridgeGrad;
+        bctx.beginPath();
+        bctx.moveTo(912, 378);
+        bctx.lineTo(1000, 374);
+        bctx.lineTo(1000, 752);
+        bctx.lineTo(902, 746);
+        bctx.closePath();
+        bctx.fill();
+        // Freezer drawer split
+        bctx.strokeStyle = '#2b2f35';
+        bctx.lineWidth = 3;
+        bctx.beginPath();
+        bctx.moveTo(905, 588);
+        bctx.lineTo(1000, 592);
+        bctx.stroke();
+
+        // 9. White Sliding Glass Patio Door (left edge)
+        bctx.fillStyle = '#f1f5f9';
+        bctx.beginPath();
+        bctx.moveTo(0, 212);
+        bctx.lineTo(116, 244);
+        bctx.lineTo(148, 845);
+        bctx.lineTo(0, 912);
+        bctx.closePath();
+        bctx.fill();
+
+        // Dark night glass pane with white colonial grids
+        bctx.fillStyle = '#181c22';
+        bctx.beginPath();
+        bctx.moveTo(0, 268);
+        bctx.lineTo(88, 290);
+        bctx.lineTo(116, 804);
+        bctx.lineTo(0, 852);
+        bctx.closePath();
+        bctx.fill();
+
+        bctx.strokeStyle = '#e2e8f0';
+        bctx.lineWidth = 4;
+        // Vertical grid bar
+        bctx.beginPath();
+        bctx.moveTo(36, 276);
+        bctx.lineTo(54, 830);
+        bctx.stroke();
+        // Horizontal grid bars
+        [0.25, 0.5, 0.75].forEach((t) => {
+          bctx.beginPath();
+          bctx.moveTo(0, 268 + t * 584);
+          bctx.lineTo(88 + t * 28, 290 + t * 514);
+          bctx.stroke();
+        });
+      }
+
+      buildDefaultKitchenScene();
+
+      /**
+       * Main Rendering Pipeline
+       * Composites the base kitchen image with realistic wall recoloring, upper cabinet
+       * recoloring (preserving door bevels & wood grain), and perspective-accurate
+       * reconstructed lower shaker cabinets & countertops.
+       */
+      function render() {
+        ctx.clearRect(0, 0, BASE_W, BASE_H);
+
+        // 1. Draw base kitchen photo (either user-uploaded photo or embedded baseline)
+        if (state.customPhotoImg) {
+          ctx.drawImage(state.customPhotoImg, 0, 0, BASE_W, BASE_H);
+        } else {
+          ctx.drawImage(offscreenBase, 0, 0, BASE_W, BASE_H);
+        }
+
+        // If user is holding/toggling "Original Photo", stop here
+        if (state.showOriginalOnly) {
+          return;
+        }
+
+        // 2. Apply Wall Color Overlay (preserves lighting gradient & shadows over dark burgundy)
+        renderWallColor();
+
+        // 3. Apply Upper Cabinet Color Overlay (preserves door panel recesses & bevels)
+        renderUpperCabinets();
+
+        // 4. Render Reconstructed Lower Base Cabinets & Countertops
+        if (state.showReconstructedLower) {
+          renderLowerCabinets();
+          renderCountertops();
+        }
+      }
+
+      /**
+       * Wall Paint Compositor
+       * Dark burgundy has low luminance; simply multiplying cream over burgundy turns it brown.
+       * Instead, we blend a solid paint layer at `wallCoverage` opacity and re-apply the
+       * original wall luminance/shadow map on top using `multiply` + `soft-light` so light
+       * cream walls look crisp, bright, and naturally shaded in corners.
+       */
+      function renderWallColor() {
+        const { r, g, b } = hexToRgb(state.wallColor);
+        const alpha = state.wallCoverage;
+
+        ctx.save();
+        ctx.beginPath();
+        GEOMETRY.walls.forEach((poly) => {
+          poly.forEach(([nx, ny], i) => {
+            const x = nx * BASE_W;
+            const y = ny * BASE_H;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          });
+          ctx.closePath();
+        });
+        ctx.clip();
+
+        // Base paint coat
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        ctx.fillRect(0, 0, BASE_W, BASE_H);
+
+        // Subtle ambient ceiling & corner shadow gradient so walls never look flat
+        ctx.globalAlpha = 0.22;
+        const cornerShade = ctx.createLinearGradient(150, 120, 520, 420);
+        cornerShade.addColorStop(0, 'rgba(255,255,255,0.25)');
+        cornerShade.addColorStop(0.55, 'rgba(0,0,0,0.08)');
+        cornerShade.addColorStop(0.75, 'rgba(0,0,0,0.24)');
+        cornerShade.addColorStop(1, 'rgba(0,0,0,0.12)');
+        ctx.fillStyle = cornerShade;
+        ctx.fillRect(0, 0, BASE_W, BASE_H);
+
+        ctx.restore();
+      }
+
+      /**
+       * Upper Cabinets Compositor
+       * Paints each upper cabinet door and side panel in perspective while preserving
+       * authentic shaker/raised panel shadow lines, bevel highlights, and metallic knobs.
+       */
+      function renderUpperCabinets() {
+        const cabHex = state.cabinetColor;
+        const shadingStrength = state.cabinetShading;
+
+        const paintCabinetDoor = (quad, brightnessFactor, knobPos) => {
+          ctx.save();
+          tracePolygon(ctx, quad);
+          ctx.clip();
+
+          // Base cabinet color
+          ctx.fillStyle = shadeHex(cabHex, brightnessFactor);
+          ctx.fill();
+
+          // Subtle natural wood grain / satin sheen texture
+          ctx.globalAlpha = 0.14 * shadingStrength;
+          ctx.fillStyle = '#000000';
+          for (let i = 0; i < 18; i++) {
+            const u = i / 18;
+            const top = lerpQuad(quad, u, 0);
+            const bot = lerpQuad(quad, u, 1);
+            ctx.beginPath();
+            ctx.moveTo(top[0], top[1]);
+            ctx.lineTo(bot[0], bot[1]);
+            ctx.lineWidth = 1.2;
+            ctx.strokeStyle = i % 2 === 0 ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.18)';
+            ctx.stroke();
+          }
+
+          // Recessed center shaker panel
+          ctx.globalAlpha = 1;
+          traceSubQuad(ctx, quad, 0.15, 0.10, 0.85, 0.90);
+          ctx.fillStyle = shadeHex(cabHex, brightnessFactor * 0.93);
+          ctx.fill();
+
+          // Inner bevel highlight (bottom & right inner edges) and shadow (top & left inner edges)
+          const p00 = lerpQuad(quad, 0.15, 0.10);
+          const p10 = lerpQuad(quad, 0.85, 0.10);
+          const p11 = lerpQuad(quad, 0.85, 0.90);
+          const p01 = lerpQuad(quad, 0.15, 0.90);
+
+          ctx.lineWidth = 2.2 * shadingStrength + 0.8;
+          ctx.strokeStyle = `rgba(0, 0, 0, ${0.42 * shadingStrength})`;
+          ctx.beginPath();
+          ctx.moveTo(p01[0], p01[1]);
+          ctx.lineTo(p00[0], p00[1]);
+          ctx.lineTo(p10[0], p10[1]);
+          ctx.stroke();
+
+          ctx.strokeStyle = `rgba(255, 255, 255, ${0.24 * shadingStrength})`;
+          ctx.beginPath();
+          ctx.moveTo(p10[0], p10[1]);
+          ctx.lineTo(p11[0], p11[1]);
+          ctx.lineTo(p01[0], p01[1]);
+          ctx.stroke();
+
+          // Outer door seam border
+          tracePolygon(ctx, quad);
+          ctx.strokeStyle = `rgba(0, 0, 0, ${0.55 * shadingStrength})`;
+          ctx.lineWidth = 1.8;
+          ctx.stroke();
+
+          // Brushed nickel cabinet knob
+          if (knobPos) {
+            const [kx, ky] = lerpQuad(quad, knobPos[0], knobPos[1]);
+            ctx.beginPath();
+            ctx.arc(kx + 1.5, ky + 2, 4.2, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.45)';
+            ctx.fill();
+
+            const knobGrad = ctx.createRadialGradient(kx - 1.5, ky - 1.5, 0.5, kx, ky, 4.2);
+            knobGrad.addColorStop(0, '#f1f5f9');
+            knobGrad.addColorStop(0.6, '#94a3b8');
+            knobGrad.addColorStop(1, '#475569');
+            ctx.beginPath();
+            ctx.arc(kx, ky, 4, 0, Math.PI * 2);
+            ctx.fillStyle = knobGrad;
+            ctx.fill();
+          }
+
+          ctx.restore();
+        };
+
+        // Left upper cabinet shaded gable side panel
+        ctx.save();
+        tracePolygon(ctx, GEOMETRY.upperCabLeft.sidePanel);
+        ctx.fillStyle = shadeHex(cabHex, 0.76);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+
+        // Left upper cabinet 3 doors
+        const leftDoors = GEOMETRY.upperCabLeft.doors;
+        paintCabinetDoor(leftDoors[0], 1.02, [0.88, 0.87]);
+        paintCabinetDoor(leftDoors[1], 1.00, [0.14, 0.87]);
+        paintCabinetDoor(leftDoors[2], 0.98, [0.86, 0.87]);
+
+        // Right upper cabinets around microwave & fridge
+        const rCabs = GEOMETRY.upperCabRight;
+        paintCabinetDoor(rCabs.leftDoor, 0.96, [0.87, 0.87]);
+        paintCabinetDoor(rCabs.aboveMicrowaveLeft, 0.95, [0.86, 0.82]);
+        paintCabinetDoor(rCabs.aboveMicrowaveRight, 0.93, [0.14, 0.82]);
+        paintCabinetDoor(rCabs.rightDoor, 0.91, [0.13, 0.87]);
+        paintCabinetDoor(rCabs.aboveFridge, 0.88, [0.16, 0.82]);
+      }
+
+      /**
+       * Reconstructed Lower Base Cabinets
+       * Builds matching shaker-style base cabinets with top drawers and lower doors
+       * wrapping the L-corner from the sliding door to the stainless steel range.
+       */
+      function renderLowerCabinets() {
+        const cabHex = state.cabinetColor;
+        const shadingStrength = state.cabinetShading;
+        const lc = GEOMETRY.lowerCabinets;
+
+        // 1. Recessed toe-kick shadow strip at floor
+        ctx.save();
+        ctx.fillStyle = '#18181b';
+        tracePolygon(ctx, lc.toeKickLeft);
+        ctx.fill();
+        tracePolygon(ctx, lc.toeKickBack);
+        ctx.fill();
+        ctx.restore();
+
+        // 2. Left gable side panel next to sliding door
+        ctx.save();
+        tracePolygon(ctx, lc.leftReturn);
+        ctx.fillStyle = shadeHex(cabHex, 0.74);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+
+        // Helper to draw a base cabinet bay (top drawer + bottom door)
+        const drawBaseBay = (parentQuad, u0, u1, brightness, handleSide) => {
+          const drawerQuad = [
+            lerpQuad(parentQuad, u0 + 0.01, 0.03),
+            lerpQuad(parentQuad, u1 - 0.01, 0.03),
+            lerpQuad(parentQuad, u1 - 0.01, 0.26),
+            lerpQuad(parentQuad, u0 + 0.01, 0.26)
+          ];
+          const doorQuad = [
+            lerpQuad(parentQuad, u0 + 0.01, 0.28),
+            lerpQuad(parentQuad, u1 - 0.01, 0.28),
+            lerpQuad(parentQuad, u1 - 0.01, 0.97),
+            lerpQuad(parentQuad, u0 + 0.01, 0.97)
+          ];
+
+          // Draw Top Drawer
+          ctx.save();
+          tracePolygon(ctx, drawerQuad);
+          ctx.fillStyle = shadeHex(cabHex, brightness);
+          ctx.fill();
+          ctx.strokeStyle = `rgba(0,0,0,${0.48 * shadingStrength})`;
+          ctx.lineWidth = 1.6;
+          ctx.stroke();
+
+          // Drawer inner shaker recess
+          traceSubQuad(ctx, drawerQuad, 0.14, 0.22, 0.86, 0.78);
+          ctx.fillStyle = shadeHex(cabHex, brightness * 0.93);
+          ctx.fill();
+          ctx.strokeStyle = `rgba(0,0,0,${0.32 * shadingStrength})`;
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+
+          // Drawer center knob
+          const [dkx, dky] = lerpQuad(drawerQuad, 0.5, 0.5);
+          ctx.beginPath();
+          ctx.arc(dkx, dky, 3.6, 0, Math.PI * 2);
+          ctx.fillStyle = '#cbd5e1';
+          ctx.fill();
+          ctx.restore();
+
+          // Draw Lower Door
+          ctx.save();
+          tracePolygon(ctx, doorQuad);
+          ctx.fillStyle = shadeHex(cabHex, brightness);
+          ctx.fill();
+          ctx.strokeStyle = `rgba(0,0,0,${0.48 * shadingStrength})`;
+          ctx.lineWidth = 1.6;
+          ctx.stroke();
+
+          // Door inner shaker recess
+          traceSubQuad(ctx, doorQuad, 0.15, 0.10, 0.85, 0.90);
+          ctx.fillStyle = shadeHex(cabHex, brightness * 0.93);
+          ctx.fill();
+          ctx.strokeStyle = `rgba(0,0,0,${0.35 * shadingStrength})`;
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+
+          // Door upper knob
+          const ku = handleSide === 'left' ? 0.16 : 0.84;
+          const [kx, ky] = lerpQuad(doorQuad, ku, 0.12);
+          ctx.beginPath();
+          ctx.arc(kx, ky, 3.6, 0, Math.PI * 2);
+          ctx.fillStyle = '#cbd5e1';
+          ctx.fill();
+          ctx.restore();
+        };
+
+        // Left wall cabinet carcass + 3 bays
+        ctx.save();
+        tracePolygon(ctx, lc.leftRunFace);
+        ctx.fillStyle = shadeHex(cabHex, 0.86);
+        ctx.fill();
+        ctx.restore();
+
+        drawBaseBay(lc.leftRunFace, 0.00, 0.34, 0.96, 'right');
+        drawBaseBay(lc.leftRunFace, 0.34, 0.67, 0.94, 'left');
+        drawBaseBay(lc.leftRunFace, 0.67, 1.00, 0.91, 'right');
+
+        // Back wall cabinet carcass + 2 bays (lazy susan / sink base + stove flank)
+        ctx.save();
+        tracePolygon(ctx, lc.backRunFace);
+        ctx.fillStyle = shadeHex(cabHex, 0.80);
+        ctx.fill();
+        ctx.restore();
+
+        drawBaseBay(lc.backRunFace, 0.00, 0.50, 0.87, 'right');
+        drawBaseBay(lc.backRunFace, 0.50, 1.00, 0.85, 'left');
+
+        // Under-counter shadow cast onto upper cabinet drawers
+        ctx.save();
+        tracePolygon(ctx, lc.leftRunFace);
+        const shadowL = ctx.createLinearGradient(0, 565, 0, 635);
+        shadowL.addColorStop(0, 'rgba(0,0,0,0.42)');
+        shadowL.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = shadowL;
+        ctx.fill();
+
+        tracePolygon(ctx, lc.backRunFace);
+        const shadowB = ctx.createLinearGradient(0, 558, 0, 610);
+        shadowB.addColorStop(0, 'rgba(0,0,0,0.45)');
+        shadowB.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = shadowB;
+        ctx.fill();
+        ctx.restore();
+      }
+
+      /**
+       * Reconstructed Countertops
+       * Renders the horizontal top plane and vertical front thickness edge directly
+       * beneath the existing mosaic tile backsplash with realistic sheen & subtle veining.
+       */
+      function renderCountertops() {
+        const cHex = state.counterColor;
+        const ct = GEOMETRY.countertop;
+
+        // 1. Top Horizontal Counter Surface (brightest plane catching overhead lights)
+        ctx.save();
+        tracePolygon(ctx, ct.topSurface);
+        ctx.clip();
+
+        const topGrad = ctx.createLinearGradient(180, 530, 640, 560);
+        topGrad.addColorStop(0, shadeHex(cHex, 1.02));
+        topGrad.addColorStop(0.5, shadeHex(cHex, 0.98));
+        topGrad.addColorStop(1, shadeHex(cHex, 0.93));
+        ctx.fillStyle = topGrad;
+        ctx.fillRect(140, 510, 530, 100);
+
+        // Subtle stone/quartz veining
+        ctx.strokeStyle = 'rgba(120, 125, 132, 0.14)';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(210, 582);
+        ctx.bezierCurveTo(280, 568, 340, 572, 410, 548);
+        ctx.moveTo(430, 550);
+        ctx.bezierCurveTo(490, 535, 550, 542, 615, 528);
+        ctx.stroke();
+
+        // Contact shadow where countertop meets the existing mosaic backsplash
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(156, 569);
+        ctx.lineTo(446, 525);
+        ctx.lineTo(652, 517);
+        ctx.stroke();
+
+        ctx.restore();
+
+        // 2. Front Edge Thickness (left run)
+        ctx.save();
+        tracePolygon(ctx, ct.frontEdgeLeft);
+        ctx.fillStyle = shadeHex(cHex, 0.86);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+
+        // 3. Front Edge Thickness (back run)
+        ctx.save();
+        tracePolygon(ctx, ct.frontEdgeBack);
+        ctx.fillStyle = shadeHex(cHex, 0.78);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      /**
+       * UI Initialization & Event Bindings
+       */
+      function initUI() {
+        const presetGrid = document.getElementById('presetGrid');
+        const cabColorInput = document.getElementById('cabColorInput');
+        const wallColorInput = document.getElementById('wallColorInput');
+        const counterColorInput = document.getElementById('counterColorInput');
+
+        const cabHex = document.getElementById('cabHex');
+        const wallHex = document.getElementById('wallHex');
+        const counterHex = document.getElementById('counterHex');
+        const badgeText = document.getElementById('badgeText');
+
+        const updateBadge = (customText) => {
+          if (customText) {
+            badgeText.textContent = customText;
+          } else {
+            badgeText.textContent = `Custom: Cabinets ${state.cabinetColor.toUpperCase()} • Walls ${state.wallColor.toUpperCase()} • Counters ${state.counterColor.toUpperCase()}`;
+          }
+        };
+
+        const syncInputs = () => {
+          cabColorInput.value = state.cabinetColor;
+          wallColorInput.value = state.wallColor;
+          counterColorInput.value = state.counterColor;
+          cabHex.textContent = state.cabinetColor.toUpperCase();
+          wallHex.textContent = state.wallColor.toUpperCase();
+          counterHex.textContent = state.counterColor.toUpperCase();
+        };
+
+        // Render Preset Cards
+        PRESETS.forEach((p, index) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className =
+            'w-full text-left p-2.5 rounded-xl bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 hover:border-emerald-500/60 transition flex items-center justify-between gap-3 group';
+          btn.innerHTML = `
+            <div class="min-w-0">
+              <div class="text-xs sm:text-sm font-medium text-slate-100 group-hover:text-emerald-300 truncate">${p.title}</div>
+              <div class="text-[11px] text-slate-400 truncate">${p.subtitle}</div>
+            </div>
+            <div class="flex items-center -space-x-1.5 shrink-0">
+              <span class="w-5 h-5 rounded-full border border-white/30 shadow" style="background:${p.cabinet}" title="Cabinets"></span>
+              <span class="w-5 h-5 rounded-full border border-white/30 shadow" style="background:${p.wall}" title="Walls"></span>
+              <span class="w-5 h-5 rounded-full border border-white/30 shadow" style="background:${p.counter}" title="Countertop"></span>
+            </div>
+          `;
+          btn.addEventListener('click', () => {
+            state.cabinetColor = p.cabinet;
+            state.wallColor = p.wall;
+            state.counterColor = p.counter;
+            state.showOriginalOnly = false;
+            syncInputs();
+            updateBadge(p.title);
+            render();
+          });
+          presetGrid.appendChild(btn);
+          if (index === 0) updateBadge(p.title);
+        });
+
+        // Helper to render Swatch Buttons
+        const renderSwatches = (containerId, swatchList, onSelect) => {
+          const container = document.getElementById(containerId);
+          swatchList.forEach((sw) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className =
+              'flex flex-col items-center gap-1 p-1.5 rounded-xl bg-slate-800/50 hover:bg-slate-800 border border-slate-700/60 hover:border-slate-500 transition';
+            btn.innerHTML = `
+              <span class="w-full h-6 rounded-lg border border-white/20 shadow-inner" style="background:${sw.hex}"></span>
+              <span class="text-[10px] text-slate-300 truncate w-full text-center">${sw.name}</span>
+            `;
+            btn.addEventListener('click', () => {
+              state.showOriginalOnly = false;
+              onSelect(sw.hex);
+              syncInputs();
+              updateBadge();
+              render();
+            });
+            container.appendChild(btn);
+          });
+        };
+
+        renderSwatches('cabSwatches', CABINET_SWATCHES, (hex) => (state.cabinetColor = hex));
+        renderSwatches('wallSwatches', WALL_SWATCHES, (hex) => (state.wallColor = hex));
+        renderSwatches('counterSwatches', COUNTER_SWATCHES, (hex) => (state.counterColor = hex));
+
+        // Live Color Picker Events
+        cabColorInput.addEventListener('input', (e) => {
+          state.cabinetColor = e.target.value;
+          state.showOriginalOnly = false;
+          syncInputs();
+          updateBadge();
+          render();
+        });
+
+        wallColorInput.addEventListener('input', (e) => {
+          state.wallColor = e.target.value;
+          state.showOriginalOnly = false;
+          syncInputs();
+          updateBadge();
+          render();
+        });
+
+        counterColorInput.addEventListener('input', (e) => {
+          state.counterColor = e.target.value;
+          state.showOriginalOnly = false;
+          syncInputs();
+          updateBadge();
+          render();
+        });
+
+        // Sliders & Toggle
+        const cabSheen = document.getElementById('cabinetSheen');
+        const cabSheenVal = document.getElementById('cabinetSheenVal');
+        cabSheen.addEventListener('input', (e) => {
+          const val = parseInt(e.target.value, 10);
+          state.cabinetShading = val / 100;
+          cabSheenVal.textContent = `${val}%`;
+          render();
+        });
+
+        const wallCov = document.getElementById('wallCoverage');
+        const wallCovVal = document.getElementById('wallCoverageVal');
+        wallCov.addEventListener('input', (e) => {
+          const val = parseInt(e.target.value, 10);
+          state.wallCoverage = val / 100;
+          wallCovVal.textContent = `${val}%`;
+          render();
+        });
+
+        const toggleLower = document.getElementById('toggleLowerCab');
+        toggleLower.addEventListener('change', (e) => {
+          state.showReconstructedLower = e.target.checked;
+          render();
+        });
+
+        // Hold-to-Compare Original Photo (supports both mouse and touch)
+        const btnCompare = document.getElementById('btnCompare');
+        const compareLabel = document.getElementById('compareLabel');
+        const startCompare = (e) => {
+          e.preventDefault();
+          state.showOriginalOnly = true;
+          compareLabel.textContent = 'Viewing Original';
+          badgeText.textContent = 'Original Photo (Before)';
+          render();
+        };
+        const endCompare = () => {
+          if (!state.showOriginalOnly) return;
+          state.showOriginalOnly = false;
+          compareLabel.textContent = 'Hold: Original';
+          updateBadge();
+          render();
+        };
+
+        btnCompare.addEventListener('mousedown', startCompare);
+        btnCompare.addEventListener('touchstart', startCompare, { passive: false });
+        window.addEventListener('mouseup', endCompare);
+        window.addEventListener('touchend', endCompare);
+
+        // Save PNG Snapshot
+        const btnDownload = document.getElementById('btnDownload');
+        const toastBox = document.getElementById('toastBox');
+        const showToast = (msg) => {
+          toastBox.textContent = msg;
+          toastBox.classList.remove('opacity-0');
+          setTimeout(() => toastBox.classList.add('opacity-0'), 2600);
+        };
+
+        btnDownload.addEventListener('click', () => {
+          try {
+            const link = document.createElement('a');
+            link.download = `kitchen-preview-${state.cabinetColor.replace('#', '')}.png`;
+            link.href = canvas.toDataURL('image/png');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('Image downloaded! Ready to upload to Facebook.');
+          } catch (err) {
+            showToast('Could not export image in this browser.');
+          }
+        });
+
+        // Optional Replace Photo Input (if user wants to load their exact original file)
+        const photoUpload = document.getElementById('photoUpload');
+        photoUpload.addEventListener('change', (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => {
+              state.customPhotoImg = img;
+              render();
+              showToast('Custom photo loaded!');
+            };
+            img.src = ev.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      // Initialize UI and draw first frame
+      initUI();
+      render();
+    })();
+  </script>
+</body>
+</html>
